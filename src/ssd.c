@@ -10,7 +10,7 @@
 
 // Refresh rate of each digit (Hz). TIM5 fires SSD_DIGITS times faster
 // so that one digit is refreshed per interrupt
-#define SSD_REFRESH_HZ 100
+#define SSD_REFRESH_HZ 400
 
 // Segment bit positions in a pattern (1 = segment ON)
 #define SEG_A  (1 << 0)
@@ -140,25 +140,32 @@ void SSD_Init(void)
     TIM5->CR1 |= (1 << 0);
 }
 
-void SSD_DisplayValue(uint16_t hundredths)
+void SSD_DisplayValue(uint16_t value)
 {
-    if (hundredths > 9999)
+    if (value > 9999)
     {
-        hundredths = 9999;
+        value = 9999;
     }
 
-    // Split the value into digits (tens, ones, tenths, hundredths of a second)
-    uint8_t tens       = (hundredths / 1000) % 10;
-    uint8_t ones       = (hundredths / 100) % 10;
-    uint8_t tenths     = (hundredths / 10) % 10;
-    uint8_t hundredth  = hundredths % 10;
+    uint8_t thousands = value / 1000;
+    uint8_t hundreds  = (value / 100) % 10;
+    uint8_t tens      = (value / 10) % 10;
+    uint8_t ones      = value % 10;
 
-    // Suppress the leading zero for values under 10.00
-    SSD_BUFFER[0] = digitSegments[(tens == 0) ? SSD_BLANK : tens];
-    // Decimal point goes after the second digit
-    SSD_BUFFER[1] = digitSegments[ones] | SEG_DP;
-    SSD_BUFFER[2] = digitSegments[tenths];
-    SSD_BUFFER[3] = digitSegments[hundredth];
+    // Leading-zero blanking
+    SSD_BUFFER[0] = (thousands == 0) ?
+                    digitSegments[SSD_BLANK] :
+                    digitSegments[thousands];
+
+    SSD_BUFFER[1] = (thousands == 0 && hundreds == 0) ?
+                    digitSegments[SSD_BLANK] :
+                    digitSegments[hundreds];
+
+    SSD_BUFFER[2] = (thousands == 0 && hundreds == 0 && tens == 0) ?
+                    digitSegments[SSD_BLANK] :
+                    digitSegments[tens];
+
+    SSD_BUFFER[3] = digitSegments[ones];
 }
 
 void SSD_Refresh(void)
